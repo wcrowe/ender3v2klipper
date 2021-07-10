@@ -9,6 +9,8 @@ https://github.com/KevinOConnor/klipper/blob/master/docs/Rotation_Distance.md
 4. Use the digital calipers to measure the new distance between the extruder body and the mark on the filament. Note this as <subsequent_mark_distance>. Then calculate: actual_extrude_distance = <initial_mark_distance> - <subsequent_mark_distance>
 5. Calculate rotation_distance as: rotation_distance = <previous_rotation_distance> * <actual_extrude_distance> / <requested_extrude_distance> Round the new rotation_distance to three decimal places.
 
+31.205 * 18 / 50
+
 SET_VELOCITY_LIMIT SQUARE_CORNER_VELOCITY=1 ACCEL=500
 TUNING_TOWER COMMAND=SET_PRESSURE_ADVANCE PARAMETER=ADVANCE START=0 FACTOR=.020
 
@@ -24,3 +26,5 @@ ADD_BED_MESH TARGET_TEMP=80
 
 Preasure advance
 https://github.com/KevinOConnor/klipper/blob/master/docs/Pressure_Advance.md
+.645
+
