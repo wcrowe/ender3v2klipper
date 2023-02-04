@@ -23,17 +23,11 @@
 # will use none-compatible characters and your network configuration won't
 # work!
 
+## WPA/WPA2 secured
 network={
-  ssid="ARRIS-5EEA-5G"
+  ssid="ARRIS-5EEA"
   psk="BSY89A601088"
 }
-
-
-## WPA/WPA2 secured
-# network={
-#  ssid="Frontier2928"
-#  psk="1130306025"
-# }
 
 ## Open/unsecured
 #network={
@@ -54,7 +48,7 @@ network={
 
 # Uncomment the country your Pi is in to activate Wifi in RaspberryPi 3 B+ and above
 # For full list see: https://en.wikipedia.org/wiki/ISO_3166-1_alpha-2
-country=US # United Kingdom
+country=GB # United Kingdom
 #country=CA # Canada
 #country=DE # Germany
 #country=FR # France
