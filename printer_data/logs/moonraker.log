@@ -1,0 +1,147 @@
+--------------------Moonraker Log Start--------------------
+data_path: /home/pi/printer_data
+is_default_data_path: False
+config_file: /home/pi/printer_data/config/moonraker.conf
+startup_warnings: []
+verbose: False
+debug: False
+asyncio_debug: False
+is_backup_config: False
+log_file: /home/pi/printer_data/logs/moonraker.log
+software_version: v0.7.1-834-ga413f4e
+python_version: 3.9.2 (default, Feb 28 2021, 17:03:44)  [GCC 10.2.1 20210110]
+
+#################### Moonraker Configuration ####################
+
+[server]
+host = 0.0.0.0
+port = 7125
+klippy_uds_address = /home/pi/printer_data/comms/klippy.sock
+
+[authorization]
+trusted_clients = 
+	10.0.0.0/8
+	127.0.0.0/8
+	169.254.0.0/16
+	172.16.0.0/12
+	192.168.0.0/16
+	FE80::/10
+	::1/128
+cors_domains = 
+	*.lan
+	*.local
+	*://localhost
+	*://localhost:*
+	*://my.mainsail.xyz
+	*://app.fluidd.xyz
+
+[octoprint_compat]
+
+[history]
+
+[update_manager]
+channel = dev
+refresh_interval = 168
+
+[update_manager mainsail]
+type = web
+channel = stable
+repo = mainsail-crew/mainsail
+path = ~/mainsail
+
+#################################################################
+All Configuration Files:
+/home/pi/printer_data/config/moonraker.conf
+#################################################################
+Unsafe Shutdown Count: 1
+
+System Info:
+
+***python***
+  version: sys.version_info(major=3, minor=9, micro=2, releaselevel='final', serial=0)
+  version_string: 3.9.2 (default, Feb 28 2021, 17:03:44)  [GCC 10.2.1 20210110]
+
+***cpu_info***
+  cpu_count: 4
+  bits: 64bit
+  processor: aarch64
+  cpu_desc: 
+  serial_number: 10000000f3f2a0c2
+  hardware_desc: BCM2835
+  model: Raspberry Pi 4 Model B Rev 1.2
+  total_memory: 3885428
+  memory_units: kB
+
+***sd_info***
+  manufacturer_id: 27
+  manufacturer: Unknown
+  oem_id: 5048
+  product_name: SD256
+  product_revision: 6.0
+  serial_number: dacda965
+  manufacturer_date: 5/2020
+  capacity: 238.5 GiB
+  total_bytes: 256068550656
+
+***distribution***
+  name: Debian GNU/Linux 11 (bullseye)
+  id: debian
+  version: 11
+  version_parts: {'major': '11', 'minor': '', 'build_number': ''}
+  like: 
+  codename: bullseye
+  release_info: {}
+
+***virtualization***
+  virt_type: none
+  virt_identifier: none
+
+***network***
+
+***canbus***
+
+***Allowed Services***
+  klipper_mcu
+  webcamd
+  MoonCord
+  KlipperScreen
+  moonraker-telegram-bot
+  moonraker-obico
+  sonar
+  crowsnest
+  octoeverywhere
+
+Systemd unit moonraker.service:
+unit_name: moonraker.service
+is_default: True
+Properties:
+**Requires=['sysinit.target', '-.mount', 'network-online.target', 'system.slice']
+**After=['network-online.target', 'sysinit.target', 'system.slice', 'systemd-journald.socket', 'basic.target', '-.mount']
+**SupplementaryGroups=['moonraker-admin']
+**EnvironmentFiles=/home/pi/printer_data/systemd/moonraker.env
+**ExecStart=/home/pi/moonraker-env/bin/python $MOONRAKER_ARGS
+**WorkingDirectory=/home/pi/moonraker
+**FragmentPath=/etc/systemd/system/moonraker.service
+**Description=API Server for Klipper SV1
+**User=pi
+
+Systemd unit klipper.service:
+unit_name: klipper.service
+is_default: True
+Properties:
+**Description=Klipper 3D Printer Firmware SV1
+**ExecStart=/home/pi/klippy-env/bin/python $KLIPPER_ARGS
+**FragmentPath=/etc/systemd/system/klipper.service
+Klipper Version: v0.11.0-99-g56444815
+2023-02-05 13:27:14,083 [authorization.py:_check_trusted_connection()] - Trusted Connection Detected, IP: 192.168.0.3
+2023-02-05 13:27:14,085 [app.py:log_request()] - 101 GET /websocket (192.168.0.3) [_TRUSTED_USER_] 3.86ms
+2023-02-05 13:27:14,085 [websockets.py:open()] - Websocket Opened: ID: 548025742864, Proxied: True, User Agent: Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/109.0.0.0 Safari/537.36, Host Name: klipper.local
+2023-02-05 13:27:14,150 [websockets.py:_handle_identify()] - Websocket 548025742864 Client Identified - Name: mainsail, Version: 2.4.1, Type: web
+2023-02-05 13:27:54,845 [app.py:log_request()] - 201 POST /server/files/upload (192.168.0.3) [_TRUSTED_USER_] 21.32ms
+2023-02-05 13:27:55,892 [klippy_connection.py:_on_connection_closed()] - Klippy Connection Removed
+2023-02-05 13:27:57,152 [klippy_connection.py:_do_connect()] - Klippy Connection Established
+2023-02-05 13:27:59,219 [klippy_connection.py:_request_initial_subscriptions()] - Webhooks Subscribed
+2023-02-05 13:27:59,220 [klippy_connection.py:_request_initial_subscriptions()] - GCode Output Subscribed
+2023-02-05 13:27:59,469 [job_state.py:_handle_started()] - Job state initialized: standby
+2023-02-05 13:27:59,727 [klippy_connection.py:_check_ready()] - Klippy ready
+2023-02-05 13:28:00,227 [data_store.py:_init_sensors()] - Configuring available sensors: ['heater_bed', 'extruder']
