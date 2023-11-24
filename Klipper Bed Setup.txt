@@ -1,0 +1,68 @@
+PROBE
+
+GET_POSITION
+
+z-axis
+PROBE_CALIBRATE
+
+
+
+x
+position_endstop: 0
+position_max: 235
+homing_speed: 50
+
+y
+position_endstop: 0
+position_max: 215.5
+position_min: -19.5
+
+old tilt
+screw1: 73.5,35.50
+screw1_name: front left screw
+screw2: 242.50,35.50
+screw2_name: front right screw
+screw3: 242.50,205
+screw3_name: rear right screw
+screw4: 73.5,205
+screw4_name: rear left screw
+horizontal_move_z: 10
+speed: 50
+screw_thread:  CW-M3
+
+
+
+screw1: 73.5,35.50
+screw1_name: front left screw
+screw2: 242.50,85.00
+screw2_name: middle right screw
+screw3: 73.5,205
+screw3_name: rear left screw
+horizontal_move_z: 10
+speed: 50
+screw_thread:  CW-M3
+
+
+
+probe at 127.500,137.500 is z=1.230156
+probe at 95.5,137.500 is z=1.230156
+
+
+
+
+
+
+mcu: stepper_x:2149 stepper_y:4234 stepper_z:-370359
+stepper: stepper_x:127.500000 stepper_y:137.500000 stepper_z:1.230000
+kinematic: X:127.500000 Y:137.500000 Z:1.230000
+toolhead: X:127.500000 Y:137.500000 Z:1.230000 E:0.000000
+gcode: X:127.500000 Y:137.500000 Z:1.230000 E:0.000000
+gcode base: X:0.000000 Y:0.000000 Z:0.000000 E:0.000000
+gcode homing: X:0.000000 Y:0.000000 Z:0.000000
+
+
+
+
+
+Version: v0.10.0-425-gc7e0372c
+Load: 0.00, Awake: 0.00, Freq: 168 MHz,
