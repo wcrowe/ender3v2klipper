@@ -1,0 +1,760 @@
+===== Config file =====
+[virtual_sdcard]
+path = /home/pi/printer_data/gcodes
+on_error_gcode = CANCEL_PRINT
+
+[pause_resume]
+recover_velocity = 50
+
+[display_status]
+
+[gcode_macro CANCEL_PRINT]
+description = Cancel the actual running print
+rename_existing = CANCEL_PRINT_BASE
+gcode = 
+	TURN_OFF_HEATERS
+	CANCEL_PRINT_BASE
+
+[gcode_macro PAUSE]
+description = Pause the actual running print
+rename_existing = PAUSE_BASE
+gcode = 
+	
+	{% set E = printer["gcode_macro PAUSE"].extrude|float %}
+	
+	
+	{% set x_park = printer.toolhead.axis_maximum.x|float - 5.0 %}
+	{% set y_park = printer.toolhead.axis_maximum.y|float - 5.0 %}
+	
+	{% set max_z = printer.toolhead.axis_maximum.z|float %}
+	{% set act_z = printer.toolhead.position.z|float %}
+	{% if act_z < (max_z - 2.0) %}
+	{% set z_safe = 2.0 %}
+	{% else %}
+	{% set z_safe = max_z - act_z %}
+	{% endif %}
+	
+	PAUSE_BASE
+	G91
+	{% if printer.extruder.can_extrude|lower == 'true' %}
+	G1 E-{E} F2100
+	{% else %}
+	{action_respond_info("Extruder not hot enough")}
+	{% endif %}
+	{% if "xyz" in printer.toolhead.homed_axes %}
+	G1 Z{z_safe} F900
+	G90
+	G1 X{x_park} Y{y_park} F6000
+	{% else %}
+	{action_respond_info("Printer not homed")}
+	{% endif %}
+variable_extrude = 1.0
+
+[gcode_macro RESUME]
+description = Resume the actual running print
+rename_existing = RESUME_BASE
+gcode = 
+	
+	{% set E = printer["gcode_macro PAUSE"].extrude|float %}
+	
+	{% if 'VELOCITY' in params|upper %}
+	{% set get_params = ('VELOCITY=' + params.VELOCITY)  %}
+	{%else %}
+	{% set get_params = "" %}
+	{% endif %}
+	
+	{% if printer.extruder.can_extrude|lower == 'true' %}
+	G91
+	G1 E{E} F2100
+	{% else %}
+	{action_respond_info("Extruder not hot enough")}
+	{% endif %}
+	RESUME_BASE {get_params}
+
+[gcode_macro _TOOLHEAD_PARK_PAUSE_CANCEL]
+description = Helper: park toolhead used in PAUSE and CANCEL_PRINT
+gcode = 
+	
+	{% set macro_found = True if printer['gcode_macro _CLIENT_VARIABLE'] is defined else False %}
+	{% set client = printer['gcode_macro _CLIENT_VARIABLE'] %}
+	{% set velocity = printer.configfile.settings.pause_resume.recover_velocity %}
+	{% set use_custom     = False if not macro_found
+	else False if client.use_custom_pos is not defined
+	else True  if client.use_custom_pos|lower == 'true'
+	else False %}
+	{% set custom_park_x  = 0.0 if not macro_found else client.custom_park_x|default(0.0) %}
+	{% set custom_park_y  = 0.0 if not macro_found else client.custom_park_y|default(0.0) %}
+	{% set park_dz        = 2.0 if not macro_found else client.custom_park_dz|default(2.0)|abs %}
+	{% set use_fw_retract = False if not macro_found
+	else False if client.use_fw_retract is not defined
+	else True  if client.use_fw_retract|lower == 'true' and printer.firmware_retraction is defined
+	else False %}
+	{% set retract      = 1.0  if not macro_found else client.retract|default(1.0)|abs %}
+	{% set sp_retract   = 2100 if not macro_found else client.speed_retract|default(35) * 60 %}
+	{% set sp_hop       = 900  if not macro_found else client.speed_hop|default(15) * 60 %}
+	{% set sp_move      = velocity * 60 if not macro_found else client.speed_move|default(velocity) * 60 %}
+	
+	{% set act = printer.toolhead.position %}
+	{% set max = printer.toolhead.axis_maximum %}
+	{% set cone = printer.toolhead.cone_start_z|default(max.z) %}
+	{% set round_bed = True if printer.configfile.settings.printer.kinematics is in ['delta','polar','rotary_delta','winch']
+	else False %}
+	
+	{% set z_min = params.Z_MIN|default(0)|float %}
+	{% set z_park = [[(act.z + park_dz), z_min]|max, max.z]|min %}
+	{% set x_park = params.X       if params.X is defined
+	else custom_park_x  if use_custom
+	else 0.0            if round_bed
+	else (max.x - 5.0) %}
+	{% set y_park = params.Y       if params.Y is defined
+	else custom_park_y  if use_custom
+	else (max.y - 5.0)  if round_bed and z_park < cone
+	else 0.0            if round_bed
+	else (max.y - 5.0) %}
+	
+	{% if printer.extruder.can_extrude %}
+	{% if use_fw_retract %}
+	G10
+	{% else %}
+	M83
+	G1 E-{retract} F{sp_retract}
+	{% if printer.gcode_move.absolute_extrude %} M82 {% endif %}
+	{% endif %}
+	{% else %}
+	{action_respond_info("Extruder not hot enough")}
+	{% endif %}
+	{% if "xyz" in printer.toolhead.homed_axes %}
+	G90
+	G1 Z{z_park} F{sp_hop}
+	G1 X{x_park} Y{y_park} F{sp_move}
+	{% if not printer.gcode_move.absolute_coordinates %} G91 {% endif %}
+	{% else %}
+	{action_respond_info("Printer not homed")}
+	{% endif %}
+
+[verify_heater extruder]
+max_error = 360
+check_gain_time = 60
+
+[firmware_retraction]
+retract_length = 3.0
+retract_speed = 50
+unretract_extra_length = 0
+unretract_speed = 60
+
+[gcode_macro SET_RETRACTIONLENGTH]
+gcode = 
+	SET_RETRACTION RETRACT_LENGTH={params.LENGTH|float}
+	GET_RETRACTION
+
+[gcode_macro m201]
+gcode = 
+
+[gcode_macro m203]
+gcode = 
+
+[gcode_macro m205]
+gcode = 
+
+[bltouch]
+sensor_pin = ^PC5
+control_pin = PB0
+probe_with_touch_mode = False
+pin_up_reports_not_triggered = True
+pin_up_touch_mode_reports_triggered = True
+x_offset = -30
+y_offset = -36
+speed = 50
+z_offset = 3.230
+
+[safe_z_home]
+home_xy_position = 127.5,137.50
+z_hop = 10
+z_hop_speed = 5
+
+[screws_tilt_adjust]
+screw1 = 51.5,35.50
+screw1_name = front left screw
+screw2 = 205.50,145.00
+screw2_name = middle right screw
+screw3 = 51.5,210
+screw3_name = rear left screw
+horizontal_move_z = 10
+speed = 50
+screw_thread = CW-M3
+
+[bed_mesh]
+speed = 50
+horizontal_move_z = 5
+mesh_min = 50, 50
+mesh_max = 150, 150
+probe_count = 5,5
+algorithm = bicubic
+fade_start = 1
+fade_end = 10
+fade_target = 0
+
+[gcode_macro PSPOT]
+gcode = 
+	probe
+	G90
+	G1 Z10 F7100
+
+[gcode_macro GOTO1]
+gcode = 
+	G90
+	G1 X73.5 F2500
+	G1 Y35.50 F2500
+
+[gcode_macro GOTO2]
+gcode = 
+	G90
+	G1 X242.50 F2500
+	G1 Y35.50 F2500
+
+[gcode_macro GOTO3]
+gcode = 
+	G90
+	G1 X242.50 F2500
+	G1 Y205 F2500
+
+[gcode_macro GOTO4]
+gcode = 
+	G90
+	G1 X73.5 F2500
+	G1 Y205 F2500
+
+[gcode_macro GOTO_S1]
+gcode = 
+	G90
+	G28
+	G1 Z8
+	G1 X22 Y15 F3000
+	G1 Z5.7
+
+[gcode_macro GOTO_S2]
+gcode = 
+	G90
+	G28
+	G1 Z8
+	G1 X22 Y185 F3000
+	G1 Z5.7
+
+[gcode_macro GOTO_S3]
+gcode = 
+	G90
+	G28
+	G1 Z8
+	G1 X192 Y104 F3000
+	G1 Z5.7
+
+[gcode_macro PID_TUNE_BED]
+gcode = 
+	{% set TARGET_TEMP = params.TARGET_TEMP|default(80)|float %}
+	G28
+	PID_CALIBRATE HEATER=heater_bed TARGET={TARGET_TEMP}
+
+[gcode_macro PID_TUNE_HOTEND]
+gcode = 
+	{% set TARGET_TEMP = params.TARGET_TEMP|default(245)|float %}
+	G28
+	PID_CALIBRATE HEATER=extruder TARGET={TARGET_TEMP}
+
+[gcode_macro LOAD_MESH_TEMP]
+gcode = 
+	{% set BED_TEMPERATURE = params.BED_TEMPERATURE|default(80)|float %}
+	{% set FORCE = params.FORCE|default(0)|int %}
+	{printer.gcode.action_respond_info("- AUTOMATED BED MESH GENERATOR -")}
+	{% if BED_TEMPERATURE|int < 30 %}
+	{printer.gcode.action_respond_info("Your bed temp is to low, make sure it is at least 30 or higher")}
+	{% else %}
+	{% if printer.configfile.config["bed_mesh " + BED_TEMPERATURE] is defined and FORCE|int == 0 %}
+	G28
+	BED_MESH_PROFILE LOAD={BED_TEMPERATURE}
+	{printer.gcode.action_respond_info("Succesfully loaded bed_mesh "+ BED_TEMPERATURE)}
+	{% else %}
+	{% if printer.configfile.config["bed_mesh " + BED_TEMPERATURE] is defined and FORCE|int == 1 %}
+	BED_MESH_PROFILE REMOVE={BED_TEMPERATURE}
+	{% endif %}
+	{printer.gcode.action_respond_info("bed_mesh not defined, your bed temperature will go up!")}
+	{printer.gcode.action_respond_info("We will probe the bed and save the mesh as bed_mesh "+ BED_TEMPERATURE)}
+	ADD_BED_MESH TARGET_TEMP={BED_TEMPERATURE}
+	{% endif %}
+	{% endif %}
+
+[gcode_macro ADD_BED_MESH]
+gcode = 
+	{% set TARGET_TEMP = params.TARGET_TEMP|default(80)|float %}
+	M190 S{TARGET_TEMP}
+	G28
+	BED_MESH_CALIBRATE
+	BED_MESH_PROFILE SAVE={TARGET_TEMP}
+	TURN_OFF_HEATERS
+
+[gcode_macro ADD_BED_MESH_40]
+gcode = 
+	{% set TARGET_TEMP = params.TARGET_TEMP|default(40.0)|float %}
+	M190 S{TARGET_TEMP}
+	G28
+	BED_MESH_CALIBRATE
+	BED_MESH_PROFILE SAVE={TARGET_TEMP}
+	TURN_OFF_HEATERS
+	SAVE_CONFIG
+
+[gcode_macro ADD_BED_MESH_70]
+gcode = 
+	{% set TARGET_TEMP = params.TARGET_TEMP|default(70.0)|float %}
+	M190 S{TARGET_TEMP}
+	G28
+	BED_MESH_CALIBRATE
+	BED_MESH_PROFILE SAVE={TARGET_TEMP}
+	TURN_OFF_HEATERS
+	SAVE_CONFIG
+
+[gcode_macro ADD_BED_MESH_80]
+gcode = 
+	{% set TARGET_TEMP = params.TARGET_TEMP|default(80.0)|float %}
+	M190 S{TARGET_TEMP}
+	G28
+	BED_MESH_CALIBRATE
+	BED_MESH_PROFILE SAVE={TARGET_TEMP}
+	TURN_OFF_HEATERS
+	SAVE_CONFIG
+
+[gcode_macro START_PRINT]
+gcode = 
+	{% set BED_TEMP = params.BED_TEMP|default(70)|float %}
+	{% set EXTRUDER_TEMP = params.EXTRUDER_TEMP|default(190)|float %}
+	{% set EXTRUDER_STANDBY_TEMP = params.EXTRUDER_STANDBY_TEMP|default(170)|float %}
+	{% set Z_OFFSET = params.Z_OFFSET|default(0.0)|float %}
+	
+	M140 S{BED_TEMP}
+	
+	G90
+	
+	SET_GCODE_OFFSET Z={Z_OFFSET}
+	
+	G28
+	
+	
+	BED_MESH_PROFILE LOAD={BED_TEMP}
+	
+	G1 Z5 F3000
+	
+	G1 Z0.15 F300
+	
+	M190 S{BED_TEMP}
+	
+	M109 S{EXTRUDER_TEMP}
+	
+	PRIME_LINE
+
+[gcode_macro END_PRINT]
+gcode = 
+	
+	M140 S0
+	M104 S0
+	M106 S0
+	
+	G91
+	G1 X-2 Y-2 E-3 F300
+	
+	G1 Z10 F3000
+	G90
+	
+	M84
+
+[gcode_macro PRIME_LINE]
+gcode = 
+	M117 Prime Line
+	G92 E0
+	
+	G1 Z2.0 F3000
+	
+	G1 X25 Y30 Z0.28 F5000.0
+	G1 X25 Y200.0 Z0.28 F1500.0 E15
+	G1 X27 Y200.0 Z0.28 F5000.0
+	G1 X27 Y50 Z0.28 F1500.0 E30
+	G92 E0
+	G1 Z2.0 F3000
+
+[gcode_macro M600]
+gcode = 
+	M117 Filament Change
+	M118 Filament Change
+	SAVE_GCODE_STATE NAME=filament_change
+	PAUSE
+	LOW_TEMP_CHECK
+	G91
+	G1 E-1 F300
+	M125
+	M702
+	
+	M117 New filament
+	M118 New filament
+	COUNTDOWN TIME=25 MSG="Switch"
+	M701
+	COUNTDOWN TIME=10 MSG="Clean"
+	RESUME
+	M117 Resuming
+	M118 Resuming
+	RESTORE_GCODE_STATE NAME=filament_change
+	M117 Printing..
+	M118 Printing..
+
+[gcode_macro G29]
+gcode = 
+	G28
+	BED_MESH_CALIBRATE
+	G0 X0 Y0 Z10 F6000
+	BED_MESH_PROFILE save=default
+	SAVE_CONFIG
+
+[gcode_macro M125]
+gcode = 
+	SAVE_GCODE_STATE NAME=parking
+	M117 Parking toolhead
+	G91
+	G1 Z20 F600
+	G90
+	G1 X125 Y0 F4000
+	RESTORE_GCODE_STATE NAME=parking
+
+[gcode_macro M701]
+gcode = 
+	SAVE_GCODE_STATE NAME=loading_filament
+	M117 Loading Filament
+	M83
+	G92 E0.0
+	LOW_TEMP_CHECK
+	G1 E420 F6000
+	G1 E100 F200
+	G92 E0.0
+	RESTORE_GCODE_STATE NAME=loading_filament
+
+[gcode_macro M702]
+gcode = 
+	SAVE_GCODE_STATE NAME=unloading_filament
+	M125
+	M117 Unloading Filament
+	LOW_TEMP_CHECK
+	G91
+	G1 E10 F100
+	G92 E0.0
+	G1 E-530 F6000
+	G92 E0.0
+	RESTORE_GCODE_STATE NAME=unloading_filament
+
+[gcode_macro COUNTDOWN]
+gcode = 
+	{% set MSG = params.MSG|default("Time: ") %}
+	{% set TIME = params.TIME|default(10)|int %}
+	
+	{% for s in range(TIME|int, 0, -1) %}
+	
+	G4 P1000
+	
+	M117 {params.MSG} {s}s
+	M118 {params.MSG} {s}s
+	{% endfor %}
+
+[gcode_macro UNLOAD]
+gcode = 
+	{% set E = params.E|default(-320)|int %}
+	G91
+	G1 E5.0 F1200
+	G1 E3.0 F1600
+	G1 E-13.14 F7000
+	G1 E{E} F3000
+	G90
+
+[stepper_x]
+step_pin = PD5
+dir_pin = !PD4
+enable_pin = !PD7
+microsteps = 32
+rotation_distance = 40
+endstop_pin = ^PC0
+position_endstop = -10
+position_min = -10
+position_max = 220
+homing_speed = 50
+
+[tmc2209 stepper_x]
+uart_pin = PD6
+run_current = 0.580
+hold_current = 0.500
+stealthchop_threshold = 999999
+
+[stepper_y]
+step_pin = PD0
+dir_pin = !PA15
+enable_pin = !PD3
+microsteps = 32
+rotation_distance = 40
+endstop_pin = ^PC1
+position_endstop = 0
+position_max = 210.0
+position_min = -19.5
+homing_speed = 50
+
+[tmc2209 stepper_y]
+uart_pin = PD1
+run_current = 0.580
+hold_current = 0.500
+stealthchop_threshold = 999999
+
+[stepper_z]
+step_pin = PC6
+dir_pin = PC7
+enable_pin = !PD14
+microsteps = 64
+rotation_distance = 2
+endstop_pin = probe:z_virtual_endstop
+position_max = 250
+position_min = -3
+
+[tmc2209 stepper_z]
+uart_pin = PD15
+run_current = 0.580
+hold_current = 0.500
+stealthchop_threshold = 999999
+
+[extruder]
+step_pin = PD12
+dir_pin = !PD13
+enable_pin = !PD10
+microsteps = 16
+gear_ratio = 1:1
+rotation_distance = 7.53
+nozzle_diameter = 0.400
+filament_diameter = 1.750
+heater_pin = PB3
+sensor_type = EPCOS 100K B57560G104F
+sensor_pin = PA0
+min_temp = 0
+max_temp = 300
+max_extrude_only_distance = 101
+pressure_advance = 0.07
+control = pid
+pid_kp = 21.384
+pid_ki = 1.320
+pid_kd = 86.604
+
+[tmc2209 extruder]
+uart_pin = PD11
+run_current = 1.000
+hold_current = 0.600
+stealthchop_threshold = 999999
+
+[heater_bed]
+heater_pin = PB4
+sensor_type = EPCOS 100K B57560G104F
+sensor_pin = PA1
+min_temp = 0
+max_temp = 130
+control = pid
+pid_kp = 65.352
+pid_ki = 0.627
+pid_kd = 1703.237
+
+[heater_fan nozzle_cooling_fan]
+pin = PB6
+
+[fan]
+pin = PB5
+
+[mcu]
+serial = /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00
+
+[printer]
+kinematics = cartesian
+max_velocity = 300
+max_accel = 1500
+max_z_velocity = 5
+max_z_accel = 100
+
+[board_pins]
+aliases = 
+	
+	EXP1_1=PE8, EXP1_3=PE7,   EXP1_5=PB2,  EXP1_7=PB1,  EXP1_9=<GND>,
+	EXP1_2=PE9, EXP1_4=<RST>, EXP1_6=PE10, EXP1_8=PE11, EXP1_10=<5V>
+
+[bed_mesh default]
+version = 1
+points = 
+	-0.010313, -0.027813, -0.044844, -0.071094, -0.059063
+	-0.003594, -0.007656, -0.013750, 0.007656, -0.010000
+	-0.008125, -0.007969, -0.000469, -0.016719, 0.019687
+	0.008125, 0.016406, 0.028125, 0.056250, 0.074531
+	0.007969, 0.027500, 0.052656, 0.071719, 0.111562
+x_count = 5
+y_count = 5
+mesh_x_pps = 2
+mesh_y_pps = 2
+algo = bicubic
+tension = 0.2
+min_x = 50.0
+max_x = 150.0
+min_y = 50.0
+max_y = 150.0
+
+[bed_mesh 50.0]
+version = 1
+points = 
+	-0.010313, -0.027813, -0.044844, -0.071094, -0.059063
+	-0.003594, -0.007656, -0.013750, 0.007656, -0.010000
+	-0.008125, -0.007969, -0.000469, -0.016719, 0.019687
+	0.008125, 0.016406, 0.028125, 0.056250, 0.074531
+	0.007969, 0.027500, 0.052656, 0.071719, 0.111562
+x_count = 5
+y_count = 5
+mesh_x_pps = 2
+mesh_y_pps = 2
+algo = bicubic
+tension = 0.2
+min_x = 50.0
+max_x = 150.0
+min_y = 50.0
+max_y = 150.0
+=======================
+Args: ['/home/pi/klipper/klippy/klippy.py', '/home/pi/printer_data/config/printer.cfg', '-I', '/home/pi/printer_data/comms/klippy.serial', '-l', '/home/pi/printer_data/logs/klippy.log', '-a', '/home/pi/printer_data/comms/klippy.sock']
+Git version: 'v0.12.0-114-ga77d0790'
+Branch: master
+Remote: origin
+Tracked URL: https://github.com/Klipper3d/klipper
+CPU: 4 core ?
+Python: '3.9.2 (default, Feb 28 2021, 17:03:44) \n[GCC 10.2.1 20210110]'
+webhooks client 547696733392: {'program': 'Moonraker', 'version': 'v0.8.0-317-g0850c16'}
+=============== Log rollover at Sun Mar  3 10:04:02 2024 ===============
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+mcu 'mcu': Unable to open serial port: [Errno 2] could not open port /dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00: [Errno 2] No such file or directory: '/dev/serial/by-id/usb-Klipper_stm32f407xx_5C0040000F504D5750323120-if00'
+MCU error during connect
+Traceback (most recent call last):
+  File "/home/pi/klipper/klippy/mcu.py", line 768, in _mcu_identify
+    self._serial.connect_uart(self._serialport, self._baud, rts)
+  File "/home/pi/klipper/klippy/serialhdl.py", line 182, in connect_uart
+    self._error("Unable to connect")
+  File "/home/pi/klipper/klippy/serialhdl.py", line 61, in _error
+    raise error(self.warn_prefix + (msg % params))
+serialhdl.error: mcu 'mcu': Unable to connect
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/home/pi/klipper/klippy/klippy.py", line 176, in _connect
+    self.send_event("klippy:mcu_identify")
+  File "/home/pi/klipper/klippy/klippy.py", line 263, in send_event
+    return [cb(*params) for cb in self.event_handlers.get(event, [])]
+  File "/home/pi/klipper/klippy/klippy.py", line 263, in <listcomp>
+    return [cb(*params) for cb in self.event_handlers.get(event, [])]
+  File "/home/pi/klipper/klippy/mcu.py", line 773, in _mcu_identify
+    raise error(str(e))
+mcu.error: mcu 'mcu': Unable to connect
+Build file /home/pi/klipper/klippy/../.config(2693): Fri Nov 24 09:21:55 2023
+========= Last MCU build config =========
+# CONFIG_LOW_LEVEL_OPTIONS is not set
+# CONFIG_MACH_AVR is not set
+# CONFIG_MACH_ATSAM is not set
+# CONFIG_MACH_ATSAMD is not set
+# CONFIG_MACH_LPC176X is not set
+CONFIG_MACH_STM32=y
+# CONFIG_MACH_HC32F460 is not set
+# CONFIG_MACH_RP2040 is not set
+# CONFIG_MACH_PRU is not set
+# CONFIG_MACH_AR100 is not set
+# CONFIG_MACH_LINUX is not set
+# CONFIG_MACH_SIMU is not set
+CONFIG_BOARD_DIRECTORY="stm32"
+CONFIG_MCU="stm32f407xx"
+CONFIG_CLOCK_FREQ=168000000
+CONFIG_USBSERIAL=y
+CONFIG_FLASH_SIZE=0x80000
+CONFIG_FLASH_BOOT_ADDRESS=0x8000000
+CONFIG_RAM_START=0x20000000
+CONFIG_RAM_SIZE=0x20000
+CONFIG_STACK_SIZE=512
+CONFIG_FLASH_APPLICATION_ADDRESS=0x8008000
+CONFIG_STM32_SELECT=y
+# CONFIG_MACH_STM32F103 is not set
+# CONFIG_MACH_STM32F207 is not set
+# CONFIG_MACH_STM32F401 is not set
+# CONFIG_MACH_STM32F405 is not set
+CONFIG_MACH_STM32F407=y
+# CONFIG_MACH_STM32F429 is not set
+# CONFIG_MACH_STM32F446 is not set
+# CONFIG_MACH_STM32F765 is not set
+# CONFIG_MACH_STM32F031 is not set
+# CONFIG_MACH_STM32F042 is not set
+# CONFIG_MACH_STM32F070 is not set
+# CONFIG_MACH_STM32F072 is not set
+# CONFIG_MACH_STM32G070 is not set
+# CONFIG_MACH_STM32G071 is not set
+# CONFIG_MACH_STM32G0B0 is not set
+# CONFIG_MACH_STM32G0B1 is not set
+# CONFIG_MACH_STM32G431 is not set
+# CONFIG_MACH_STM32H723 is not set
+# CONFIG_MACH_STM32H743 is not set
+# CONFIG_MACH_STM32H750 is not set
+# CONFIG_MACH_STM32L412 is not set
+# CONFIG_MACH_N32G452 is not set
+# CONFIG_MACH_N32G455 is not set
+CONFIG_MACH_STM32F4=y
+CONFIG_MACH_STM32F4x5=y
+CONFIG_HAVE_STM32_USBOTG=y
+CONFIG_HAVE_STM32_CANBUS=y
+CONFIG_HAVE_STM32_USBCANBUS=y
+CONFIG_STM32_DFU_ROM_ADDRESS=0x1fff0000
+CONFIG_STM32_FLASH_START_8000=y
+# CONFIG_STM32_FLASH_START_20200 is not set
+# CONFIG_STM32_FLASH_START_C000 is not set
+# CONFIG_STM32_FLASH_START_4000 is not set
+# CONFIG_STM32_FLASH_START_0000 is not set
+CONFIG_CLOCK_REF_FREQ=8000000
+CONFIG_STM32F0_TRIM=16
+CONFIG_STM32_USB_PA11_PA12=y
+# CONFIG_STM32_SERIAL_USART1 is not set
+# CONFIG_STM32_CANBUS_PA11_PA12 is not set
+# CONFIG_STM32_CANBUS_PA11_PB9 is not set
+# CONFIG_STM32_USBCANBUS_PA11_PA12 is not set
+CONFIG_USB=y
+CONFIG_USB_VENDOR_ID=0x1d50
+CONFIG_USB_DEVICE_ID=0x614e
+CONFIG_USB_SERIAL_NUMBER_CHIPID=y
+CONFIG_USB_SERIAL_NUMBER="12345"
+CONFIG_WANT_GPIO_BITBANGING=y
+CONFIG_WANT_DISPLAYS=y
+CONFIG_WANT_SENSORS=y
+CONFIG_WANT_LIS2DW=y
+CONFIG_WANT_SOFTWARE_I2C=y
+CONFIG_WANT_SOFTWARE_SPI=y
+CONFIG_CANBUS_FREQUENCY=1000000
+CONFIG_HAVE_GPIO=y
+CONFIG_HAVE_GPIO_ADC=y
+CONFIG_HAVE_GPIO_SPI=y
+CONFIG_HAVE_GPIO_SDIO=y
+CONFIG_HAVE_GPIO_I2C=y
+CONFIG_HAVE_GPIO_HARD_PWM=y
+CONFIG_HAVE_STRICT_TIMING=y
+CONFIG_HAVE_CHIPID=y
+CONFIG_HAVE_STEPPER_BOTH_EDGE=y
+CONFIG_HAVE_BOOTLOADER_REQUEST=y
+CONFIG_INLINE_STEPPER_HACK=y
+=======================
+Build file /home/pi/klipper/klippy/../out/klipper.dict(8876): Fri Nov 24 15:06:06 2023
+Last MCU build version: v0.12.0-10-gea2f6bc0
+Last MCU build tools: gcc: (15:8-2019-q3-1+b1) 8.3.1 20190703 (release) [gcc-8-branch revision 273027] binutils: (2.35.2-2+14+b2) 2.35.2
+Last MCU build config: ADC_MAX=4095 BUS_PINS_i2c1=PB6,PB7 BUS_PINS_i2c1a=PB8,PB9 BUS_PINS_i2c2=PB10,PB11 BUS_PINS_i2c2a=PH4,PH5 BUS_PINS_i2c3=PA8,PC9 BUS_PINS_i2c3a=PH7,PH8 BUS_PINS_sdio=PC12,PD2,PC8,PC9,PC10,PC11 BUS_PINS_spi1=PA6,PA7,PA5 BUS_PINS_spi1a=PB4,PB5,PB3 BUS_PINS_spi2=PB14,PB15,PB13 BUS_PINS_spi2a=PC2,PC3,PB10 BUS_PINS_spi2b=PI2,PI3,PI1 BUS_PINS_spi3=PB4,PB5,PB3 BUS_PINS_spi3a=PC11,PC12,PC10 CLOCK_FREQ=168000000 MCU=stm32f407xx PWM_MAX=255 RESERVE_PINS_USB=PA11,PA12 RESERVE_PINS_crystal=PH0,PH1 STATS_SUMSQ_BASE=256 STEPPER_BOTH_EDGE=1
+Build file /home/pi/klipper/klippy/../out/klipper.elf(1281288): Fri Nov 24 15:06:14 2023
