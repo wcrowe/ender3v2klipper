@@ -1,0 +1,27 @@
+[stepper_z]
+step_pin: PC6
+dir_pin: PC7
+enable_pin: !PD14
+microsteps: 64
+rotation_distance: 2
+endstop_pin:probe:z_virtual_endstop
+#endstop_pin: ^PC2
+position_max: 250
+position_min: -3
+
+[tmc2209 stepper_z]
+uart_pin: PD15
+run_current: 0.580
+hold_current: 0.500
+stealthchop_threshold: 999999
+
+12mm Pitch: 4mm Lead: 4mm
+
+Feedback for future redditor:
+
+Sfu1204 has a 4mm lead size and can be considered as a single thread screw. So I had to change my rotation_distance to 4
+
+【SFU1204-365mm Ball Screw kit】2Pcs Ball Screw SFU1204-365mm with ball nut+Decoupling device+Special CNC machining screw seat+Special CNC machining motor support+Accessories(Motor not included) for Ender3/pro/v2/neo dual Z-axis Upgrade.This kit is compatible with the ChowThink linear rail kit.
+【Higher Precision&Smooth Running】The trapezoidal screw belongs to sliding friction, but the ball screw is rolling friction, Through the movement of the ball, the heat is less and the precision is high，The efficiency is 2-4 times than the trapezoidal screw,which can make the Z-axis screw run more smoothly， which can make your printer capable of printing with higher precision.
+【HIGH-QUALITY Material&Accessories】Ball screw is precision machined from high strength steel, and equipped with special customized CNC machining screw seat/motor support/decoupling device，so that it has higher precision and stronger load capacity.
+【Parameter Specification】1.Processing Mode：cold rolling 2.Screw diameter: 12mm 3.Pitch: 4mm 4.Lead: 4mm 5.Screw material: S55C 6.Nut material: 20CrMoV 7.Accuracy class: C7(the stroke error within any 300mm length shall not exceed 0.05mm)

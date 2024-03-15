@@ -66,3 +66,88 @@ gcode homing: X:0.000000 Y:0.000000 Z:0.000000
 
 Version: v0.10.0-425-gc7e0372c
 Load: 0.00, Awake: 0.00, Freq: 168 MHz,
+
+
+Heater extruder not heating at expected rate
+See the 'verify_heater' section in docs/Config_Reference.md
+for the parameters that control this check.
+
+Once the underlying issue is corrected, use the
+"FIRMWARE_RESTART" command to reset the firmware, reload the
+config, and restart the host software.
+Printer is shutdown
+
+Z_OFFSET
+
+rotation distance
+22.608
+
+.4 x 75%
+
+136.79 - 100 
+40
+
+130 - 23 
+22.08
+SET_EXTRUDER_ROTATION_DISTANCE EXTRUDER=extruder DISTANCE=21.4
+
+front screw
+x = 22  ref
+y = 15
+
+back screw
+x = 22
+y = 185
+
+x = 192
+y = 104
+
+
+; *** This version is for Ender 3 size Printer ***
+; Bed leveling Ender 3 by CHEP FilamentFriday.com
+; For Electronic Bed Level Tool with 5.7mm offset
+
+G90
+
+G28 ; Home all axis
+G1 Z8 ; Lift Z axis
+G1 X22 Y15 F3000; Move to Position 1
+G1 Z5.7
+G4 P25000 ; Pause for 30 seconds
+G1 Z8 ; Lift Z axis
+G1 X22 Y185 F3000; Move to Position 2
+G1 Z5.7
+G4 P25000 ; Pause for 30 seconds
+G1 Z8 ; Lift Z axis
+G1 X192 Y104 F3000; Move to Position 3
+G1 Z5.7
+G4 P25000 ; Pause for 30 seconds
+
+
+G28 X;
+M84 ; disable motors
+
+
+[gcode_macro GOTO_SCREW_1]
+gcode:
+G90
+G28 ; Home all axis
+G1 Z8 ; Lift Z axis
+G1 X22 Y15 F3000; Move to Position 1
+
+
+[gcode_macro GOTO_SCREW_2]
+gcode:
+G90
+G28 ; Home all axis
+G1 Z8 ; Lift Z axis
+G1 X22 Y15 F3000; Move to Position 1
+
+
+
+[gcode_macro GOTO_SCREW_3]
+gcode:
+G90
+G28 ; Home all axis
+G1 Z8 ; Lift Z axis
+G1 X22 Y15 F3000; Move to Position 1
