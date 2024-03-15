@@ -1,1 +1,29 @@
 Input Shaping
+
+ACCELEROMETER_QUERY
+MEASURE_AXES_NOISE
+TEST_RESONANCES AXIS=X
+TEST_RESONANCES AXIS=Y
+
+Check Accelerometer:
+ACCELEROMETER_QUERY
+MEASURE_AXES_NOISE
+
+Run Tests(Manual computation):
+TEST_RESONANCES AXIS=X
+TEST_RESONANCES AXIS=Y
+
+Run Test ALT (auto computation and addition):
+SHAPER_CALIBRATE AXIS=X
+SHAPER_CALIBRATE AXIS=Y
+
+Compile Test info:
+~/klipper/scripts/calibrate_shaper.py /tmp/resonances_x_*.csv -o /tmp/shaper_calibrate_x.png
+~/klipper/scripts/calibrate_shaper.py /tmp/resonances_y_*.csv -o /tmp/shaper_calibrate_y.png
+
+Input Shaper template for .cfg file:
+[input_shaper]
+shaper_freq_x: 
+shaper_type_x:
+shaper_freq_y: 
+shaper_type_y:
